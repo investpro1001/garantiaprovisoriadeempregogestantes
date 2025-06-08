@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Quiz - Direitos da Gestante</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #f2f2f2; 
+            padding: 30px; 
+            display: flex; 
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; 
+            margin: 0;
+        }
+        .quiz-container { 
+            background: #fff; 
+            padding: 25px; 
+            border-radius: 10px; 
+            max-width: 600px; 
+            margin: auto; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.1); 
+            text-align: center; 
+        }
+
+        .question { 
+            font-weight: bold; 
+            margin-bottom: 20px; 
+            font-size: 1.2em; 
+            line-height: 1.4; 
+        }
+
+        .options {
+            margin-top: 15px; 
+        }
+        .options button { 
+            display: block; 
+            margin: 10px auto; 
+            padding: 12px 15px; 
+            width: 90%; 
+            max-width: 450px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+            background-color: #f8f8f8; 
+            cursor: pointer; 
+            font-size: 1em; 
+            text-align: left; 
+            transition: background-color 0.2s ease, border-color 0.2s ease; 
+        }
+        .options button:hover { 
+            background-color: #e9e9e9; 
+            border-color: #bbb;
+        }
+        .options button:disabled { 
+            opacity: 0.7; 
+            cursor: not-allowed; 
+        } 
+        .options button[data-correct="true"] { background-color: #d4edda; border-color: #28a745; color: #155724;} 
+        .options button[data-incorrect="true"] { background-color: #f8d7da; border-color: #dc3545; color: #721c24;} 
+
+        .feedback { 
+            margin-top: 20px; 
+            font-weight: bold; 
+            font-size: 1em; 
+            line-height: 1.5;
+            color: #333;
+        }
+        .feedback .motivo {
+            font-size: 0.9em;
+            color: #555;
+            font-weight: normal;
+            display: block; 
+            margin-top: 5px;
+        }
+
+        .next-btn, .retry-btn { 
+            margin-top: 25px; 
+            padding: 12px 25px; 
+            background-color: #007bff; 
+            color: #fff; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 1em; 
+            display: block; 
+            margin-left: auto; 
+            margin-right: auto;
+            transition: background-color 0.2s ease;
+        }
+        .retry-btn { 
+            background-color: #28a745; 
+        }
+        .next-btn:hover { background-color: #0056b3; }
+        .retry-btn:hover { background-color: #218838; }
+
+        .result {
+            margin-top: 30px;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: center;
+            color: #007bff;
+        }
+        .result.final-success {
+            color: #28a745; 
+        }
+        .result.final-partial {
+            color: #ffc107; 
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div id="quiz"></div>
+        <div class="feedback" id="feedback"></div>
+        <button class="next-btn" id="nextBtn" onclick="nextQuestion()" style="display:none;">Próxima</button>
+        <div class="result" id="result"></div>
+    </div>
+
+    <script>
+        const quizDataOriginal = [
+            {
+                pergunta: "As gestantes têm estabilidade permanente de emprego?",
+                alternativas: [
+                    "Verdadeiro",
+                    "Falso"
+                ],
+                resposta: "Falso",
+                motivo: "Todos os casos relacionados à gestante tratam de garantia provisória de emprego e não de estabilidade."
+            },
+            {
+                pergunta: "Qual o direito da gestante caso seja dispensada pelo empregador?",
+                alternativas: [
+                    "Ela deverá ser reintegrada ao emprego ou receber uma indenização referente ao período de sua estabilidade provisória.",
+                    "Ela deverá ser reintegrada e receber uma indenização"
+                ],
+                resposta: "Ela deverá ser reintegrada ao emprego ou receber uma indenização referente ao período de sua estabilidade provisória.",
+                motivo: "A gestante tem o direito de ser reintegrada ou receber uma indenização que substitua o período de estabilidade provisória (desde a confirmação da gravidez até cinco meses após o parto). A reintegração e indenização simultâneas não são a regra geral."
+            }
+        ];
+
+        let quizData = [...quizDataOriginal]; 
+        let questionsToReview = []; 
+        let currentQuestionIndex = 0; 
+        let score = 0;
+        let isReviewMode = false; 
+
+        const quiz = document.getElementById("quiz");
+        const feedback = document.getElementById("feedback");
+        const nextBtn = document.getElementById("nextBtn");
+        const result = document.getElementById("result");
+
+        function loadQuestion() {
+            feedback.innerHTML = "";
+            nextBtn.style.display = "none";
+
+            const questionsArray = isReviewMode ? questionsToReview : quizData;
+
+            if (currentQuestionIndex < questionsArray.length) {
+                const q = questionsArray[currentQuestionIndex];
+
+                quiz.innerHTML = `
+                    <div class="question">${q.pergunta}</div>
+                    <div class="options">
+                        ${q.alternativas.map(a => `<button onclick="checkAnswer(this, '${a}')">${a}</button>`).join("")}
+                    </div>
+                `;
+            } else {
+                endQuizCycle();
+            }
+        }
+
+        function checkAnswer(button, selected) {
+            const questionsArray = isReviewMode ? questionsToReview : quizData;
+            const q = questionsArray[currentQuestionIndex];
+
+            document.querySelectorAll(".options button").forEach(b => {
+                b.disabled = true;
+                if (b === button) { 
+                    if (selected === q.resposta) {
+                        b.setAttribute('data-correct', 'true');
+                    } else {
+                        b.setAttribute('data-incorrect', 'true');
+                    }
+                } else if (b.textContent === q.resposta) { 
+                    b.setAttribute('data-correct', 'true');
+                }
+            });
+
+            if (selected === q.resposta) {
+                feedback.innerHTML = `✅ Correto!`;
+                if (!isReviewMode) { 
+                    score++;
+                } else {
+                    questionsToReview.splice(currentQuestionIndex, 1);
+                    currentQuestionIndex--; 
+                }
+            } else {
+                let motivoHtml = '';
+                if (q.motivo) {
+                    motivoHtml = `<span class="motivo">Motivo: ${q.motivo}</span>`;
+                }
+                feedback.innerHTML = `❌ Errado. A resposta correta é: <strong><span class="math-inline">\{q\.resposta\}</strong\>\.</span>{motivoHtml}`;
+                if (!isReviewMode) { 
+                    questionsToReview.push(q);
+                }
+            }
+            nextBtn.style.display = "inline-block";
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            loadQuestion();
+        }
+
+        function endQuizCycle() {
+            quiz.innerHTML = "";
+            feedback.innerHTML = "";
+            nextBtn.style.display = "none";
+
+            if (!isReviewMode) { 
+                const totalQuestions = quizDataOriginal.length;
+                result.innerHTML = `🏁 Fim do quiz! Você acertou <strong><span class="math-inline">\{score\}</strong\> de <strong\></span>{totalQuestions}</strong> perguntas.<br>`;
+                result.classList.remove('final-success', 'final-partial'); 
+
+                if (questionsToReview.length > 0) {
+                    result.innerHTML += `Você errou ${questionsToReview.length} pergunta(s).`;
+                    result.innerHTML += `<br><button class="retry-btn" onclick="startReview()">Refazer as perguntas que errei</button>`;
+                    result.classList.add('final-partial'); 
+                } else {
+                    result.innerHTML += `Parabéns, você acertou todas!`;
+                    result.classList.add('final-success'); 
+                }
+            } else { 
+                if (questionsToReview.length === 0) {
+                    result.innerHTML = `Parabéns! Você refez e acertou todas as perguntas que tinha errado! 🎉`;
+                    result.classList.remove('final-partial');
+                    result.classList.add('final-success');
+                } else {
+                    result.innerHTML = `Ainda restam ${questionsToReview.length} pergunta(s) para revisar.`;
+                    result.innerHTML += `<br><button class="retry-btn" onclick="startReview()">Tentar novamente</button>`;
+                    result.classList.add('final-partial');
+                }
+            }
+        }
+
+        function startReview() {
+            isReviewMode = true;
+            currentQuestionIndex = 0; 
+            result.innerHTML = ""; 
+            loadQuestion();
+        }
+
+        loadQuestion();
+    </script>
+</body>
+</html>
